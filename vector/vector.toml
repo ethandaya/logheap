@@ -8,23 +8,27 @@ decoding.codec = "json"
 type = "remap"
 inputs = ["log_http"]
 source = '''
-  _timestamp = to_unix_timestamp(now())
-  namespace = "name"
-  raw_source = .
-  source = encode_json(raw_source)
-  raw_source = flatten(raw_source)
-  . = {}
+_timestamp = to_unix_timestamp(now())
+namespace = "name"
+raw_source = .
+source = encode_json(raw_source)
+raw_source = flatten(raw_source)
+. = {}
 
-  .string_names = []
-  .string_values = []
-  .number_names = []
-  .number_values = []
-  .bool_names = []
-  .bool_values = []
-  .array_values = []
-  .array_names = []
+.string_names = []
+.string_values = []
+.number_names = []
+.number_values = []
+.bool_names = []
+.bool_values = []
+.array_values = []
+.array_names = []
 
-  for_each(array(keys(raw_source))) -> |_index, value| {
+.accounts = []
+.transactions = []
+.checksum_addresses = []
+
+for_each(array(keys(raw_source))) -> |_index, value| {
     v = get!(raw_source, [value]);
     if is_string(v){
         .string_names = push(.string_names, value)
@@ -39,11 +43,17 @@ source = '''
         .array_names = push(.array_names, value)
         .array_values = push(.array_values, v)
     }
-  }
+}
 
-  .source = source
-  ._timestamp = _timestamp;
-  ._namespace = namespace
+result, err = parse_regex_all(source, r'(?P<address>0x[0-9a-fA-F]{40})')
+.accounts = unique(map_values(result) -> |value| { get!(value, ["address"]) })
+
+result, err = parse_regex_all(source, r'(?P<txhash>0x[0-9a-fA-F]{64})')
+.transactions = unique(map_values(result) -> |value| { get!(value, ["txhash"]) })
+
+.source = source
+._timestamp = _timestamp;
+._namespace = namespace
 
 '''
 
