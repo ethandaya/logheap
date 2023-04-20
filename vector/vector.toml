@@ -1,0 +1,54 @@
+[sources.log_http]
+type = "http_server"
+address = "0.0.0.0:3030"
+framing.method = "newline_delimited"
+decoding.codec = "json"
+
+[transforms.explode_logs]
+type = "remap"
+inputs = ["log_http"]
+source = '''
+  _timestamp = to_unix_timestamp(now())
+  namespace = "name"
+  raw_source = .
+  source = encode_json(raw_source)
+  raw_source = flatten(raw_source)
+  . = {}
+
+  .string_names = []
+  .string_values = []
+  .number_names = []
+  .number_values = []
+  .bool_names = []
+  .bool_values = []
+  .array_values = []
+  .array_names = []
+
+  for_each(array(keys(raw_source))) -> |_index, value| {
+    v = get!(raw_source, [value]);
+    if is_string(v){
+        .string_names = push(.string_names, value)
+        .string_values = push(.string_values, v)
+    } else if is_integer(v) || is_float(v) {
+        .number_names = push(.number_names, value)
+        .number_values = push(.number_values, v)
+    } else if is_boolean(v){
+        .bool_names = push(.bool_names, value)
+        .bool_values = push(.bool_values, v)
+    } else if is_array(v){
+        .array_names = push(.array_names, value)
+        .array_values = push(.array_values, v)
+    }
+  }
+
+  .source = source
+  ._timestamp = _timestamp;
+  ._namespace = namespace
+
+'''
+
+[sinks.log_console]
+type = "console"
+inputs = ["explode_logs"]
+target = "stdout"
+encoding.codec = "json"
