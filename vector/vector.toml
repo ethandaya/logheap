@@ -9,8 +9,9 @@ type = "remap"
 inputs = ["log_http"]
 source = '''
 _timestamp = to_unix_timestamp(now())
-namespace = "name"
+_namespace = ._namespace;
 raw_source = .
+del(raw_source._namespace);
 source = encode_json(raw_source)
 raw_source = flatten(raw_source)
 . = {}
@@ -40,6 +41,13 @@ for_each(array(keys(raw_source))) -> |_index, value| {
         .bool_names = push(.bool_names, value)
         .bool_values = push(.bool_values, v)
     } else if is_array(v){
+        v = map_values(array!(v)) -> |vv| {
+            if !is_object(vv) && !is_array(vv) || is_integer(v) || is_float(v) {
+                to_string!(vv)
+            } else {
+                encode_json(vv)
+            }
+        }
         .array_names = push(.array_names, value)
         .array_values = push(.array_values, v)
     }
@@ -53,12 +61,11 @@ result, err = parse_regex_all(source, r'(?P<txhash>0x[0-9a-fA-F]{64})')
 
 .source = source
 ._timestamp = _timestamp;
-._namespace = namespace
-
+._namespace = _namespace
 '''
 
-[sinks.log_console]
-type = "console"
+[sinks.clickhouse]
 inputs = ["explode_logs"]
-target = "stdout"
-encoding.codec = "json"
+type = "clickhouse"
+endpoint = "http://clickhouse-server:8123"
+table = "logs"

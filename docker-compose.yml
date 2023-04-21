@@ -1,9 +1,31 @@
 version: "3.9"
 
 services:
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse-server
+    hostname: clickhouse-server
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9009:9009"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_config:/etc/clickhouse-server
+
+
   vector:
     build: ./vector
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8888:8888"
       - "3030:3030"
+    depends_on:
+      - clickhouse
+
+
+volumes:
+  clickhouse_data:
+    driver: local
+  clickhouse_config:
+    driver: local
