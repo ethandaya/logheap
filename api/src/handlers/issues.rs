@@ -20,6 +20,8 @@ pub async fn list_issues(opts: ListOptions, db: Client) -> Result<impl warp::Rep
         vec![]
     };
 
+    println!("addresses: {:?}", addresses);
+
     let transactions: Vec<String> = if let Some(transactions) = opts.transactions {
         transactions.split(",").map(|s| s.to_string()).collect()
     } else {
@@ -35,6 +37,8 @@ pub async fn list_issues(opts: ListOptions, db: Client) -> Result<impl warp::Rep
     }
 
     query.push_str(" ORDER BY _timestamp LIMIT ? OFFSET ?");
+
+    println!("query: {}", query);
 
     let mut query = db.query(&query);
 
