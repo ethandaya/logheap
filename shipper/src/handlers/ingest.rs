@@ -5,9 +5,7 @@ use rskafka::client::partition::Compression::Gzip;
 use rskafka::client::Client;
 use rskafka::record::Record;
 use rskafka::time::OffsetDateTime;
-use serde_json::Value;
 use tokio::sync::Mutex;
-
 use uuid::Uuid;
 
 pub async fn ingest_event(
@@ -26,15 +24,12 @@ pub async fn ingest_event(
     };
 
     let key = Uuid::new_v4().to_string().into_bytes();
-    // Decode the JSON string from the received body
-    let decoded_json: Value = serde_json::from_slice(&body).unwrap();
 
-    // Convert the decoded JSON Value back to a Vec<u8>
-    let body_unescaped = serde_json::to_vec(&decoded_json).unwrap();
+    let body_to_string = String::from_utf8(body).unwrap();
 
     let record = Record {
         key: Some(key),
-        value: Some(body_unescaped),
+        value: Some(body_to_string.into_bytes()),
         headers: BTreeMap::new(),
         timestamp: OffsetDateTime::now_utc(),
     };

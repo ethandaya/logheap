@@ -1,9 +1,3 @@
-[sources.log_http]
-type = "http_server"
-address = "0.0.0.0:3030"
-framing.method = "newline_delimited"
-decoding.codec = "json"
-
 [sources.log_kafka]
 type = "kafka"
 bootstrap_servers = "PLAINTEXT://redpanda:29092"
@@ -12,7 +6,7 @@ topics = ["log"]
 
 [transforms.explode_logs]
 type = "remap"
-inputs = ["log_http", "log_kafka"]
+inputs = ["log_kafka"]
 source = '''
 _timestamp = to_unix_timestamp(to_timestamp!(.timestamp))
 _namespace = ._namespace;
@@ -72,13 +66,66 @@ result, err = parse_regex_all(source, r'(?P<txhash>0x[0-9a-fA-F]{64})')
 ._namespace = _namespace
 '''
 
+[transforms.extract_keys]
+type = "remap"
+inputs = ["explode_logs"]
+source = '''
+string_names = if exists(.string_names) { .string_names } else { [] }
+string_values = if exists(.string_values) { .string_values } else { [] }
+number_names = if exists(.number_names) { .number_names } else { [] }
+number_values = if exists(.number_values) { .number_values } else { [] }
+bool_names = if exists(.bool_names) { .bool_names } else { [] }
+bool_values = if exists(.bool_values) { .bool_values } else { [] }
+array_names = if exists(.array_names) { .array_names } else { [] }
+array_values = if exists(.array_values) { .array_values } else { [] }
+
+. = {}
+.key_types = []
+
+for_each(array!(string_names)) -> |_index, value| {
+    key_type = {}
+    key_type.name = value
+    key_type.type = "string"
+    .key_types = push(.key_types, key_type)
+
+}
+for_each(array!(number_names)) -> |_index, value| {
+    key_type = {}
+    key_type.name = value
+    key_type.type = "number"
+    .key_types = push(.key_types, key_type)
+
+}
+for_each(array!(bool_names)) -> |_index, value| {
+    key_type = {}
+    key_type.name = value
+    key_type.type = "boolean"
+    .key_types = push(.key_types, key_type)
+}
+for_each(array!(array_names)) -> |_index, value| {
+    key_type = {}
+    key_type.name = value
+    key_type.type = "array"
+    .key_types = push(.key_types, key_type)
+}
+
+.namespace = if exists(._namespace) { ._namespace } else { "unknown" }
+
+'''
+[sinks.key_kafka]
+type = "kafka"
+inputs = ["extract_keys"]
+bootstrap_servers = "PLAINTEXT://redpanda:29092"
+topic = "log_key"
+encoding.codec = "json"
+
 [sinks.clickhouse]
 inputs = ["explode_logs"]
 type = "clickhouse"
 endpoint = "http://clickhouse-server:8123"
 table = "logs"
 
-[sinks.console]
-type = "console"
-inputs = ["log_kafka"]
-encoding.codec = "json"
+#[sinks.console]
+#type = "console"
+#inputs = ["extract_keys"]
+#encoding.codec = "json"
