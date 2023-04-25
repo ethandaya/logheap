@@ -4,16 +4,24 @@ address = "0.0.0.0:3030"
 framing.method = "newline_delimited"
 decoding.codec = "json"
 
+[sources.log_kafka]
+type = "kafka"
+bootstrap_servers = "PLAINTEXT://redpanda:29092"
+group_id = "vector-aggregator"
+topics = ["log"]
+
 [transforms.explode_logs]
 type = "remap"
-inputs = ["log_http"]
+inputs = ["log_http", "log_kafka"]
 source = '''
-_timestamp = to_unix_timestamp(now())
+_timestamp = to_unix_timestamp(to_timestamp!(.timestamp))
 _namespace = ._namespace;
+_msg = parse_json!(.message)
+.message = _msg
 raw_source = .
 del(raw_source._namespace);
-source = encode_json(raw_source)
-raw_source = flatten(raw_source)
+source = encode_json(.message)
+raw_source = flatten!(.message)
 . = {}
 
 .string_names = []
@@ -69,3 +77,8 @@ inputs = ["explode_logs"]
 type = "clickhouse"
 endpoint = "http://clickhouse-server:8123"
 table = "logs"
+
+[sinks.console]
+type = "console"
+inputs = ["log_kafka"]
+encoding.codec = "json"

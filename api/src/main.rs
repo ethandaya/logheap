@@ -26,5 +26,5 @@ async fn main() {
     let routes = health.or(api_routes);
 
     println!("Listening");
-    warp::serve(routes).run(([127, 0, 0, 1], 8081)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
 }
