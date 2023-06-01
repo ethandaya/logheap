@@ -4,6 +4,7 @@ use std::env;
 use warp::Filter;
 extern crate pretty_env_logger;
 
+mod common;
 mod database;
 mod filters;
 mod handlers;

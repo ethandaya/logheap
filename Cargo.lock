@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "clickhouse",
  "pretty_env_logger",
+ "rskafka",
  "serde",
  "serde_json",
  "tokio",

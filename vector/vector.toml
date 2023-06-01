@@ -112,20 +112,52 @@ for_each(array!(array_names)) -> |_index, value| {
 .namespace = if exists(._namespace) { ._namespace } else { "unknown" }
 
 '''
+
+[transforms.extract_accounts]
+type = "remap"
+inputs = ["explode_logs"]
+source = '''
+accounts = if exists(.accounts) { .accounts } else { [] }
+. = accounts
+'''
+
+[transforms.extract_transactions]
+type = "remap"
+inputs = ["explode_logs"]
+source = '''
+transactions = if exists(.transactions) { .transactions } else { [] }
+. = transactions
+'''
+
 [sinks.key_kafka]
 type = "kafka"
 inputs = ["extract_keys"]
 bootstrap_servers = "PLAINTEXT://redpanda:29092"
-topic = "log_key"
+topic = "keys"
 encoding.codec = "json"
+
+[sinks.accounts_kafka]
+type = "kafka"
+inputs = ["extract_accounts"]
+bootstrap_servers = "PLAINTEXT://redpanda:29092"
+topic = "accounts"
+encoding.codec = "json"
+
+[sinks.transactions_kafka]
+type = "kafka"
+inputs = ["extract_transactions"]
+bootstrap_servers = "PLAINTEXT://redpanda:29092"
+topic = "transactions"
+encoding.codec = "json"
+
 
 [sinks.clickhouse]
 inputs = ["explode_logs"]
 type = "clickhouse"
 endpoint = "http://clickhouse-server:8123"
 table = "logs"
-
+#
 #[sinks.console]
 #type = "console"
-#inputs = ["extract_keys"]
+#inputs = ["extract_keys", "extract_accounts", "extract_transactions"]
 #encoding.codec = "json"
